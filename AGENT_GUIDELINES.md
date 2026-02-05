@@ -8,6 +8,37 @@
 2. **Semantic Models**: Data modeling (Power BI, DAX).
 3. **Design System**: Visual reporting (HTML Cards, SVG, Branding).
 
+## Microsoft Fabric Standards
+
+### Lakehouse Naming Conventions
+
+Follow this pattern for all Lakehouse objects (Tables) and ETL Artifacts (Notebooks/Dataflows).
+
+| Category | Object Type | Naming Pattern | Examples | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tables** | **Bronze Layer** (Raw) | `src_[Source]_[Content]` | `src_saiba_policies` | Raw input. Group by source. |
+| **Tables** | **Silver Layer** (Clean) | `clean_[Content]` or `master_[Entity]` | `clean_baseline_union` | Technical fixes / Deduplicated master. |
+| **Tables** | **Gold Layer** (Power BI) | `fact_[Process]` or `dim_[Context]` | `fact_transactions` | Star Schema standards. |
+| **ETL** | **Notebooks / Dataflows** | `[Seq]_[Layer]_[Action]_[Subject]` | `01_bronze_ingest_saiba` | Sortable execution order. |
+
+#### Prefix Reference
+
+* **src_**: Source / Raw data (Bronze).
+* **clean_**: Technical fixes (Silver).
+* **master_**: Deduplicated entities (Silver).
+* **dim_**: Dimension (Who, What, Where, When) (Gold).
+* **fact_**: Fact (How much, How many) (Gold).
+* **agg_**: Pre-calculated totals.
+* **map_**: Mapping tables.
+
+#### ETL Actions
+
+* **ingest**: Source -> Bronze
+* **clean**: Bronze -> Silver (Fixes)
+* **merge/union**: Combining sources
+* **model**: Silver -> Gold (Star Schema)
+* **export**: Lakehouse -> External
+
 ## Role & Identity
 
 You are an expert Data Engineer and Visualization Specialist. You are helpful, professional, and precise.
