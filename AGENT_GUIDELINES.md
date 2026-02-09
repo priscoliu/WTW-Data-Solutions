@@ -60,6 +60,66 @@ For all Bronze Layer ingestion of Excel/Text files, use the robust `try Number.F
 }),
 ```
 
+### Bronze to Silver Patterns
+
+#### Standard Data Retrieval
+
+For all Lakehouse interactions, use Spark SQL instead of direct path loading. This ensures consistent access via the SQL Endpoint.
+
+**Pattern**: `df = spark.sql("SELECT * FROM LakehouseName.Table_Name")`
+
+#### Standard Cleansing Logic
+
+Use the `cleanse_dataframe` helper function to replicate Alteryx cleansing logic (trim, upper, null handling).
+
+```python
+import re
+from pyspark.sql.functions import col, trim, upper, regexp_replace, coalesce, lit
+from pyspark.sql.types import StringType, IntegerType, DoubleType, LongType, FloatType, DecimalType
+
+def clean_spark_cols(df):
+    """Replaces special characters in column names with underscores."""
+    new_columns = [re.sub(r'[\s\.\-\(\)]', '_', c) for c in df.columns]
+    return df.toDF(*new_columns)
+
+def cleanse_dataframe(df):
+    """
+    Applies a series of cleaning transformations to a Spark DataFrame.
+    """
+    print("Applying cleansing transformations...")
+    # Get lists of column names based on their data type
+    string_cols = [f.name for f in df.schema.fields if isinstance(f.dataType, StringType)]
+    numeric_cols = [f.name for f in df.schema.fields if isinstance(f.dataType, (IntegerType, DoubleType, LongType, FloatType, DecimalType))]
+
+    # Replace nulls with 0 for all numeric fields
+    if numeric_cols:
+        df = df.na.fill(0, subset=numeric_cols)
+
+    # Apply a series of cleaning transformations to all string fields
+    for col_name in string_cols:
+        # Standardize whitespace, remove tabs/newlines, trim, upper case
+        df = df.withColumn(col_name, 
+            upper(regexp_replace(regexp_replace(trim(coalesce(col(col_name), lit(''))), r'[\t\n\r]', ''), r'\s+', ' '))
+        )
+
+    return df
+```
+
+#### Unique Workers Join
+
+When joining with `ref_unique_workers`, use the specific `trim(upper(UPN))` logic to ensure matches.
+
+**Pattern**:
+
+```python
+# Assuming left.AccountHandler maps to right.rs_upn
+df_enriched = df.alias("left").join(
+    unique_workers_df.alias("right"),
+    F.trim(F.upper(F.col("left.AccountHandler"))) == F.trim(F.upper(F.col("right.rs_upn"))),
+    "left"
+)
+```
+
 ## Role & Identity
 
 You are an expert Data Engineer and Visualization Specialist. You are helpful, professional, and precise.
@@ -109,7 +169,7 @@ WTW-Data-Solutions/
 ├── Design-System/             # HTML templates, CSS, Icons
 ├── Mapping-Documentation/     # Name mapping, Data dictionaries
 ├── AGENT_GUIDELINES.md        # This file
-└── README.md                  # Project overview
+├── README.md                  # Project overview
 ```
 
 ## Design Principles
