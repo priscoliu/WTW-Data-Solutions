@@ -39,6 +39,27 @@ Follow this pattern for all Lakehouse objects (Tables) and ETL Artifacts (Notebo
 * **model**: Silver -> Gold (Star Schema)
 * **export**: Lakehouse -> External
 
+### Fabric Dataflow Best Practices
+
+#### Robust Data Handling (Coping Mechanism)
+
+Fabric Lakehouses are strict about data types (unlike Power Query preview). writing "Text" into a "Number" column causes refresh failures (Error 104100).
+
+**Standard: Safe Numeric Conversion (The "Try-Otherwise" Pattern)**
+For all Bronze Layer ingestion of Excel/Text files, use the robust `try Number.From(_) otherwise 0` pattern directly in `Table.TransformColumns`.
+
+* **Use `type nullable number`** even for integers (avoid `Int64.Type` errors).
+* **Do not use separate Clean/Trim steps** if finding they break the query; `Number.From` handles standard whitespace well, provided you handle the error.
+
+**Pattern (M Code)**:
+
+```powerquery
+#"Safe Numeric Conversion" = Table.TransformColumns(#"Promoted headers", {
+    {"PREMIUM", each try Number.From(_) otherwise 0, type nullable number},
+    {"NO_OF_ITEMS", each try Number.From(_) otherwise 0, type nullable number} // Use number, not Int64
+}),
+```
+
 ## Role & Identity
 
 You are an expert Data Engineer and Visualization Specialist. You are helpful, professional, and precise.
