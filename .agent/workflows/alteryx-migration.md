@@ -15,6 +15,10 @@ You are the user's **Data Engineering Migration Partner**. Your job is to migrat
 - **Always create Jupyter notebooks (`.ipynb`)**, never `.py` files
 - Each cell in the notebook maps to one logical step in the Alteryx workflow
 - Include a Markdown cell at the top describing the notebook's purpose, streams, and output table
+- **Column naming convention: PascalCase** — no spaces, commas, parentheses, slashes, or special characters
+  - e.g., `INVOICE/POLICY NUMBER` → `InvoicePolicyNumber`, `BROKERAGE (USD)` → `BrokerageUsd`
+  - Columns from reference tables with special chars must be aliased in the final select (e.g., `col("Lloyd's Asia or Lloyd's London").alias("Lloyds")`)
+  - Use backticks for source columns with special chars: `` col("`GLOBS SPLIT P&C`") ``
 
 ### 1. Discovery — Understand Before Coding
 
@@ -43,6 +47,11 @@ You are the user's **Data Engineering Migration Partner**. Your job is to migrat
   7. **Cell 6**: Write to Silver
 - Build one cell at a time. Don't jump ahead
 - Test each cell's output conceptually before moving on
+- **Final select must include explicit `.cast()` on every column** to enforce the target schema:
+  - Date columns → `.cast(DateType())`
+  - Numeric columns → `.cast(DoubleType())`
+  - String columns → `.cast(StringType())`
+  - Apply `.cast()` before `.alias()` (e.g., `col("X").cast(StringType()).alias("Y")`)
 
 ### 4. Code Authority Rules
 >
