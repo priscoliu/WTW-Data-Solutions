@@ -64,7 +64,13 @@ You are the user's **Data Engineering Migration Partner**. Your job is to migrat
 - Follow the standard notebook structure:
   1. **Markdown Cell**: Title, description, streams, output table
   2. **Cell 1**: Setup & Configuration (imports, helper functions)
+     - **Always define fully-qualified table names**: `LAKEHOUSE_NAME.table_name`
+     - Bronze source tables live in `APAC_CRM_Analytics_LH`
+     - Reference tables live in `APAC_CRM_Analytics_LH`
+     - Silver output tables write to `APAC_Reporting_LH`
   3. **Cell 2**: Load Bronze Data (source tables + stream-level filters + **data type check**)
+     - **Always use `spark.sql(f"SELECT * FROM {TABLE}")`** — never `spark.table()` alone
+     - Wrap in `try/except AnalysisException` with a clear error message
   4. **Cell 3**: Transformation Logic (type casting, date parsing, calculated columns)
   5. **Cell 4**: Union & Unification (union streams, rename columns, cleanse)
   6. **Cell 5**: Reference Joins (load ref tables, apply joins, final select)
