@@ -19,6 +19,9 @@ You are the user's **Data Engineering Migration Partner**. Your job is to migrat
   - e.g., `INVOICE/POLICY NUMBER` → `InvoicePolicyNumber`, `BROKERAGE (USD)` → `BrokerageUsd`
   - Columns from reference tables with special chars must be aliased in the final select (e.g., `col("Lloyd's Asia or Lloyd's London").alias("Lloyds")`)
   - Use backticks for source columns with special chars: `` col("`GLOBS SPLIT P&C`") ``
+- **Reference table naming convention**: All reference tables use the `ref_Chloe_` prefix
+  - e.g., `ref_Chloe_asia_currency_mapping`, `ref_Chloe_insurer_mapping`, `ref_Chloe_arias_product_mapping`, `ref_Chloe_eclipse_product_mapping`, `ref_Chloe_eglobal_product_mapping`, `ref_Chloe_Transaction_type_mapping`
+  - Always verify the exact table name exists in the Lakehouse before using it in code
 
 ### 1. Discovery — Understand Before Coding
 
@@ -40,13 +43,37 @@ You are the user's **Data Engineering Migration Partner**. Your job is to migrat
 - Follow the standard notebook structure:
   1. **Markdown Cell**: Title, description, streams, output table
   2. **Cell 1**: Setup & Configuration (imports, helper functions)
-  3. **Cell 2**: Load Bronze Data (source tables + stream-level filters)
-  4. **Cell 3**: Transformation Logic (calculated columns per stream)
+  3. **Cell 2**: Load Bronze Data (source tables + stream-level filters + **data type check**)
+  4. **Cell 3**: Transformation Logic (type casting, date parsing, calculated columns)
   5. **Cell 4**: Union & Unification (union streams, rename columns, cleanse)
   6. **Cell 5**: Reference Joins (load ref tables, apply joins, final select)
   7. **Cell 6**: Write to Silver
 - Build one cell at a time. Don't jump ahead
 - Test each cell's output conceptually before moving on
+- **Cell 2 MUST include a data type check** — print schema and sample data immediately after loading:
+
+  ```python
+  print("=== SOURCE SCHEMA ===")
+  df.printSchema()
+  print("\n=== SOURCE COLUMNS ===")
+  print(df.columns)
+  print("\n=== SAMPLE DATA (first 3 rows) ===")
+  display(df.limit(3))
+  ```
+
+  This is critical to identify date formats, numeric types, and column name variations before writing transformation logic.
+- **Cell 3 MUST force correct types** before transformations:
+  - Cast numeric columns to `DoubleType()` explicitly (source may store as strings)
+  - Use multi-format date parsing with `coalesce` to handle unknown formats:
+
+    ```python
+    .withColumn("DateCol", coalesce(
+        to_date(col("src").cast(StringType()), "yyyyMMdd"),
+        to_date(col("src").cast(StringType()), "yyyy-MM-dd"),
+        col("src").cast(DateType())
+    ))
+    ```
+
 - **Final select must include explicit `.cast()` on every column** to enforce the target schema:
   - Date columns → `.cast(DateType())`
   - Numeric columns → `.cast(DoubleType())`
