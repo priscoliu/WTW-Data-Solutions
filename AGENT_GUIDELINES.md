@@ -10,34 +10,78 @@
 
 ## Microsoft Fabric Standards
 
-### Lakehouse Naming Conventions
+### Naming Conventions
 
-Follow this pattern for all Lakehouse objects (Tables) and ETL Artifacts (Notebooks/Dataflows).
+All naming follows strict patterns. No exceptions without team agreement.
 
-| Category | Object Type | Naming Pattern | Examples | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **Tables** | **Bronze Layer** (Raw) | `src_[Source]_[Content]` | `src_saiba_policies` | Raw input. Group by source. |
-| **Tables** | **Silver Layer** (Clean) | `clean_[Content]` or `master_[Entity]` | `clean_baseline_union` | Technical fixes / Deduplicated master. |
-| **Tables** | **Gold Layer** (Power BI) | `fact_[Process]` or `dim_[Context]` | `fact_transactions` | Star Schema standards. |
-| **ETL** | **Notebooks / Dataflows** | `[Seq]_[Layer]_[Action]_[Subject]` | `01_bronze_ingest_saiba` | Sortable execution order. |
+---
 
-#### Prefix Reference
+#### 1. ETL Artifacts (Notebooks / Dataflows)
 
-* **src_**: Source / Raw data (Bronze).
-* **clean_**: Technical fixes (Silver).
-* **master_**: Deduplicated entities (Silver).
-* **dim_**: Dimension (Who, What, Where, When) (Gold).
-* **fact_**: Fact (How much, How many) (Gold).
-* **agg_**: Pre-calculated totals.
-* **map_**: Mapping tables.
+**Pattern**: `[SS]_[layer]_[action]_[subject]`
 
-#### ETL Actions
+| Component | Rule | Examples |
+| :--- | :--- | :--- |
+| `[SS]` | **2-digit layer prefix** (see table below) | `01`, `02`, `03` |
+| `[layer]` | `bronze`, `silver`, or `gold` | — |
+| `[action]` | Verb from the action list below | `ingest`, `clean`, `notebook` |
+| `[subject]` | Source system or data domain, `snake_case` | `eglobal`, `income_report` |
 
-* **ingest**: Source -> Bronze
-* **clean**: Bronze -> Silver (Fixes)
-* **merge/union**: Combining sources
-* **model**: Silver -> Gold (Star Schema)
-* **export**: Lakehouse -> External
+**Layer Prefix Rules**:
+
+| Prefix | Layer | Description |
+| :--- | :--- | :--- |
+| `01` | Bronze | Raw ingestion from source |
+| `02` | Silver | Cleaning, dedup, type fixes |
+| `03` | Gold | Star schema modeling |
+
+* The prefix identifies the **layer**, not execution order — all Silver files start with `02`
+* Multiple files can share the same prefix (e.g., `02_silver_clean_eglobal.m`, `02_silver_notebook_eclipse.ipynb`)
+
+**Current File Registry**:
+
+| Layer | Files |
+| :--- | :--- |
+| Bronze | `01_bronze_ingest_eglobal.m`, `01_bronze_ingest_income_report.m` |
+| Silver | `02_silver_clean_eglobal.m`, `02_silver_notebook_eclipse.ipynb`, `02_silver_notebook_arias.ipynb` |
+
+**ETL Action Keywords**:
+
+* **ingest** — Source → Bronze (raw load)
+* **clean** — Bronze → Silver (type fixes, nulls, dedup via M code / Dataflow)
+* **notebook** — Bronze → Silver (complex multi-step PySpark)
+* **merge** / **union** — Combining multiple sources
+* **model** — Silver → Gold (star schema)
+* **export** — Lakehouse → External system
+
+---
+
+#### 2. Lakehouse Tables
+
+| Layer | Prefix | Pattern | Examples |
+| :--- | :--- | :--- | :--- |
+| **Bronze** | `src_` | `src_[source]_[content]` | `src_saiba_policies` |
+| **Silver** | `clean_` | `clean_[content]` | `clean_baseline_union`, `clean_eclipse_chloe` |
+| **Silver** | `master_` | `master_[entity]` | `master_clients` |
+| **Gold** | `fact_` | `fact_[process]` | `fact_transactions` |
+| **Gold** | `dim_` | `dim_[context]` | `dim_country` |
+| **Shared** | `agg_` | `agg_[metric]` | `agg_monthly_revenue` |
+| **Shared** | `map_` | `map_[mapping]` | `map_currency` |
+
+---
+
+#### 3. Reference Tables
+
+**Prefix**: `ref_Chloe_` (project-specific reference data)
+
+| Pattern | Examples |
+| :--- | :--- |
+| `ref_Chloe_[subject]_[type]` | `ref_Chloe_eglobal_product_mapping` |
+| | `ref_Chloe_asia_currency_mapping` |
+| | `ref_Chloe_Transaction_type_mapping` |
+
+* Always verify the exact table name exists in the Lakehouse before using it in code
+* Reference table files live alongside Silver notebooks in `Fabric-Silver/`
 
 ### Fabric Dataflow Best Practices
 
