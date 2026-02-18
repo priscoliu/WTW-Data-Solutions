@@ -43,7 +43,7 @@ All naming follows strict patterns. No exceptions without team agreement.
 | Layer | Files |
 | :--- | :--- |
 | Bronze | `01_bronze_ingest_eglobal.m`, `01_bronze_ingest_income_report.m` |
-| Silver | `02_silver_clean_eglobal.m`, `02_silver_notebook_eclipse.ipynb`, `02_silver_notebook_arias.ipynb`, `02_silver_notebook_gswin.ipynb` |
+| Silver | `02_silver_clean_eglobal.m`, `02_silver_notebook_eclipse.ipynb`, `02_silver_notebook_arias.ipynb`, `02_silver_notebook_gswin.ipynb`, `02_silver_notebook_saiba.ipynb` |
 
 **ETL Action Keywords**:
 
