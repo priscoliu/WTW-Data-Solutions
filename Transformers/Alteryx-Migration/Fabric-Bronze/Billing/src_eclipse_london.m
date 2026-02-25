@@ -1,0 +1,11 @@
+let
+  Source = SharePoint.Files("https://wtwonlineap.sharepoint.com/sites/rb-projects-prj-apac", [ApiVersion = 15]),
+  #"Filtered rows" = Table.SelectRows(Source, each [Name] = "Eclipse_Asia Client and Asia Insurer Reporting _MIR_12047_PowerBI File.xlsx" or [Name] = "Eclipse_Non Asia Client and Asia Insurer Reporting _MIR_12046_PowerBI File.xlsx"),
+  #"Filtered hidden files" = Table.SelectRows(#"Filtered rows", each [Attributes]?[Hidden]? <> true),
+  #"Invoke custom function" = Table.AddColumn(#"Filtered hidden files", "Transform file (3)", each #"Transform file (3)"([Content])),
+  #"Renamed columns" = Table.RenameColumns(#"Invoke custom function", {{"Name", "Source.Name"}}),
+  #"Removed other columns" = Table.SelectColumns(#"Renamed columns", {"Source.Name", "Transform file (3)"}),
+  #"Expanded table column" = Table.ExpandTableColumn(#"Removed other columns", "Transform file (3)", Table.ColumnNames(#"Transform file (3)"(#"Sample file (3)"))),
+  #"Changed column type" = Table.TransformColumnTypes(#"Expanded table column", {{"LegalEntity", type text}, {"BusinessUnit", type text}, {"Department", type text}, {"Team", type text}, {"PolicyRef", type text}, {"ProductClass", type text}, {"BusinessType", type text}, {"InceptionDate", type datetime}, {"ExpiryDate", type datetime}, {"PolicyType", type text}, {"Account Handler", type text}, {"Producer", type text}, {"TransRef", type text}, {"TransType", type text}, {"CreatedDate", type datetime}, {"LedgerCcyISO", type text}, {"Client/IndemAcct", type text}, {"Client/IndemCountry", type text}, {"Insured", type text}, {"InsuredCountry", type text}, {"UW", type text}, {"UWCountry", type text}, {"UWRole", type text}, {"NetBkgeUSDPlan", type number}, {"GrossBkgeUSDPlan", type number}, {"GrossPremNonTtyUSDPlan", type number}, {"NetClientPremNonTtyUSDPlan", type number}, {"ClassOfBusiness", type text}, {"Willis Party ID", type text}, {"Dun and Bradstreet No", type text}, {"Revenue Type", type text}, {"Effective Date", type datetime}, {"InsuredID", type text}, {"BUSegment", type text}})
+in
+  #"Changed column type"
