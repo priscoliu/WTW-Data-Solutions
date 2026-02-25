@@ -1,0 +1,579 @@
+{
+  "name": "Bronze_ETL",
+  "objectId": "0ea1073f-5755-4cc7-9231-86afa43d84e4",
+  "properties": {
+    "activities": [
+      {
+        "name": "Copy Users",
+        "description": "Copy from System Users and Workers Table",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT s.systemuserid AS UserKey, s.[fullname] AS UserName, s.domainname AS UserUPN, s.isdisabledname AS UserStatus, s.islicensedname AS LicensStatus, s.caltypename AS LicenseType, s.territoryidname AS Region, s.businessunitidname AS BusinessUnit, s.rs_profitcentername AS ProfitCenter, w.Rs_segmentlobname AS SegmentLob, w.[rs_businessname] AS BusinessName, s.rs_officename AS OfficeName, office.rs_countryname AS OfficeCountry, s.createdon AS CreatedDate, s.modifiedon AS ModifiedDate FROM systemuser s LEFT JOIN rs_workers w ON w.rs_upn = s.domainname LEFT JOIN rs_office office ON office.[rs_officeid] = s.[rs_office] WHERE s.territoryidname IN ('Asia', 'Australasia')",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "UserKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_users"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy Opportunity",
+        "description": "Copy from Opportunity Table",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT\n    ia.rs_incomeassignmentid AS MainKey, o.rs_opportunitynumber AS OpptyID, os.rs_opportunityname AS OpptyName,\n    o.owneridname AS OpptyOwner, COALESCE(s_colleague.fullname, os.owneridname) AS ColleagueInvolved,\n    os.rs_lobname AS LobProductClass, os.rs_servicename AS Service, o.stepname AS PipelinePhase,\n    o.description AS Description, o.rs_formname AS FormName, o.statuscodename AS OpptyStatus,\n    o.statecodename AS OpptyState, o.rs_opportunitytypename AS OpptyType,\n    COALESCE(o.rs_opportunitysubtypename, o.rs_opportunitytypename) AS OpptySubType,\n    o.rs_probabilityname AS LikelihoodOfWin, COALESCE(o.rs_frequencyname, os.rs_frequencyname) AS Frequency,\n    o.rs_projectstartdate AS ProjectStartDate, o.originatingleadid AS OriginatingLeadID,\n    COALESCE(os.rs_officename, s_colleague.rs_officename, o.rs_officename) AS ReportingOffice,\n    COALESCE(office.rs_countryname, s_colleague.address1_country, o.rs_countryname) AS ReportingOfficeCountry,\n    COALESCE(office.rs_subregionname, s_colleague.territoryidname, o.rs_regionname) AS ReportingOfficeRegion,\n    COALESCE(ia.rs_profitcentername, s_owner.rs_profitcentername) AS ProfitCenter,\n    o.createdon AS CreatedOn, o.modifiedon AS ModifiedOn, o.rs_inceptiondate AS FirstIncomeDate,\n    'Income Assignment' AS DataSource\nFROM rs_incomeassignment ia WITH (NOLOCK)\nINNER JOIN rs_opportunityservice os WITH (NOLOCK) ON ia.rs_serviceline = os.rs_opportunityserviceid\nINNER JOIN opportunity o WITH (NOLOCK) ON os.rs_opportunity = o.opportunityid\nLEFT JOIN systemuser s_colleague WITH (NOLOCK) ON ia.rs_colleague = s_colleague.systemuserid\nLEFT JOIN systemuser s_owner WITH (NOLOCK) ON o.ownerid = s_owner.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON os.rs_office = office.rs_officeid\nWHERE ia.statecode = 0 AND os.statecode = 0\n    AND o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND (COALESCE(office.rs_subregionname, s_colleague.territoryidname, o.rs_regionname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s_owner.domainname = 'christopher.au@willistowerswatson.com'\n        OR s_colleague.domainname = 'christopher.au@willistowerswatson.com')\n\nUNION ALL\n\nSELECT os.rs_opportunityserviceid AS MainKey, o.rs_opportunitynumber AS OpptyID, os.rs_opportunityname AS OpptyName,\n    o.owneridname AS OpptyOwner, COALESCE(s_owner.fullname, os.owneridname, o.owneridname) AS ColleagueInvolved,\n    os.rs_lobname AS LobProductClass, os.rs_servicename AS Service, o.stepname AS PipelinePhase,\n    o.description AS Description, o.rs_formname AS FormName, o.statuscodename AS OpptyStatus,\n    o.statecodename AS OpptyState, o.rs_opportunitytypename AS OpptyType,\n    COALESCE(o.rs_opportunitysubtypename, o.rs_opportunitytypename) AS OpptySubType,\n    o.rs_probabilityname AS LikelihoodOfWin, COALESCE(o.rs_frequencyname, os.rs_frequencyname) AS Frequency,\n    o.rs_projectstartdate AS ProjectStartDate, o.originatingleadid AS OriginatingLeadID,\n    COALESCE(os.rs_officename, o.rs_officename, s_owner.rs_officename) AS ReportingOffice,\n    COALESCE(office.rs_countryname, o.rs_countryname, s_owner.address1_country) AS ReportingOfficeCountry,\n    COALESCE(office.rs_subregionname, o.rs_regionname, s_owner.territoryidname) AS ReportingOfficeRegion,\n    s_owner.rs_profitcentername AS ProfitCenter,\n    o.createdon AS CreatedOn, o.modifiedon AS ModifiedOn, o.rs_inceptiondate AS FirstIncomeDate,\n    'Opportunity Service (No IA)' AS DataSource\nFROM rs_opportunityservice os WITH (NOLOCK)\nINNER JOIN opportunity o WITH (NOLOCK) ON os.rs_opportunity = o.opportunityid\nLEFT JOIN systemuser s_owner WITH (NOLOCK) ON o.ownerid = s_owner.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON os.rs_office = office.rs_officeid\nWHERE os.statecode = 0 AND o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND (COALESCE(office.rs_subregionname, s_owner.territoryidname, o.rs_regionname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s_owner.domainname = 'christopher.au@willistowerswatson.com')\n    AND NOT EXISTS (SELECT 1 FROM rs_incomeassignment ia WITH (NOLOCK) WHERE ia.rs_serviceline = os.rs_opportunityserviceid AND ia.statecode = 0)\n\nUNION ALL\n\nSELECT o.opportunityid AS MainKey, o.rs_opportunitynumber AS OpptyID, o.name AS OpptyName,\n    o.owneridname AS OpptyOwner, s.fullname AS ColleagueInvolved,\n    o.rs_productclassname AS LobProductClass, o.rs_productsubclassname AS Service, o.stepname AS PipelinePhase,\n    o.description AS Description, o.rs_formname AS FormName, o.statuscodename AS OpptyStatus,\n    o.statecodename AS OpptyState, o.rs_opportunitytypename AS OpptyType,\n    COALESCE(o.rs_opportunitysubtypename, o.rs_opportunitytypename) AS OpptySubType,\n    o.rs_probabilityname AS LikelihoodOfWin, o.rs_frequencyname AS Frequency,\n    o.rs_projectstartdate AS ProjectStartDate, o.originatingleadid AS OriginatingLeadID,\n    COALESCE(o.rs_officename, s.rs_officename) AS ReportingOffice,\n    COALESCE(office.rs_countryname, s.address1_country) AS ReportingOfficeCountry,\n    COALESCE(o.rs_regionname, s.territoryidname) AS ReportingOfficeRegion,\n    s.rs_profitcentername AS ProfitCenter,\n    o.createdon AS CreatedOn, o.modifiedon AS ModifiedOn, o.rs_inceptiondate AS FirstIncomeDate,\n    'Non Opportunity Service' AS DataSource\nFROM opportunity o WITH (NOLOCK)\nLEFT JOIN systemuser s WITH (NOLOCK) ON o.ownerid = s.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON o.rs_office = office.rs_officeid\nWHERE o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND (COALESCE(o.rs_regionname, s.territoryidname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s.domainname = 'christopher.au@willistowerswatson.com')\n    AND NOT EXISTS (SELECT 1 FROM rs_opportunityservice os WITH (NOLOCK) WHERE os.rs_opportunity = o.opportunityid AND os.statecode = 0)\n",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "MainKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_opportunity"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy Account",
+        "description": "Copy from Account Table",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT DISTINCT a.accountid AS AccountKey, a.accountnumber AS GCID, a.createdon AS CreateDate, a.modifiedon AS ModifiedDate, a.name AS AccountName, a.parentaccountidname AS ParentAccountName, a.rs_ultimateglobalparentname AS GlobalParentAccountName, a.rs_dunsnumber AS DunsNumber, a.rs_clientsegmentationname AS Tiers, a.rs_industryname AS Industry, a.rs_primarysiccodename AS PrimarySICCode, a.rs_address1countryname AS Country FROM account a WITH (NOLOCK) INNER JOIN opportunity o WITH (NOLOCK) ON a.accountid = o.parentaccountid LEFT JOIN systemuser s WITH (NOLOCK) ON o.ownerid = s.systemuserid LEFT JOIN rs_office office WITH (NOLOCK) ON o.rs_office = office.rs_officeid WHERE o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity') AND (COALESCE(o.rs_regionname, office.rs_subregionname, s.territoryidname) IN ('Asia', 'Australasia', 'India', 'Vietnam', 'China', 'Australia', 'New Zealand') OR s.domainname = 'christopher.au@willistowerswatson.com')",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "AccountKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_account"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy ProductClass",
+        "description": "Copy from ProductClass Table",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT rs_productclassid AS ProductClassKey, createdon AS CreateDate, modifiedon AS ModifiedDate, rs_name AS ProductName, rs_segmentname AS Segment, rs_businessname AS Business, statecodename AS Status FROM rs_productclass ORDER BY rs_name ASC",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "ProductClassKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_product"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy Main Transaction",
+        "description": "Copy CRM Sales Data",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "-- Part 1: Income Assignment Level\nSELECT ia.rs_incomeassignmentid AS MainKey, os.rs_opportunityserviceid AS ServiceKey,\n    o.rs_opportunitynumber AS OpportunityID, o.parentaccountid AS AccountKey,\n    o.ownerid AS OpportunityOwnerKey, COALESCE(ia.rs_colleague, os.ownerid) AS ColleagueInvolvedKey,\n    o.transactioncurrencyid AS CurrencyKey, o.campaignid AS CampaignKey,\n    os.rs_lob AS ProductClassKey, COALESCE(ia.rs_profitcenter, s_owner.rs_profitcenter) AS ProfitCenterKey,\n    CAST(o.createdon AS DATE) AS CreatedDate, CAST(o.actualclosedate AS DATE) AS CloseDate,\n    CAST(o.rs_latestmodifieddate AS DATE) AS ModifiedDate, CAST(o.rs_inceptiondate AS DATE) AS FirstIncomeDate,\n    ia.rs_share AS EstRevenueLCY, ia.rs_share_base AS EstRevenueUSD,\n    CASE WHEN o.statecodename = 'WON' THEN ia.rs_share ELSE ia.rs_share * (CAST(REPLACE(o.rs_probabilityname, '%', '') AS FLOAT) / 100.0) END AS WtRevenueLCY,\n    CASE WHEN o.statecodename = 'WON' THEN ia.rs_share_base ELSE ia.rs_share_base * (CAST(REPLACE(o.rs_probabilityname, '%', '') AS FLOAT) / 100.0) END AS WtRevenueUSD,\n    'Income Assignment' AS DataSource\nFROM rs_incomeassignment ia WITH (NOLOCK)\nINNER JOIN rs_opportunityservice os WITH (NOLOCK) ON ia.rs_serviceline = os.rs_opportunityserviceid\nINNER JOIN opportunity o WITH (NOLOCK) ON os.rs_opportunity = o.opportunityid\nLEFT JOIN systemuser s_owner WITH (NOLOCK) ON o.ownerid = s_owner.systemuserid\nLEFT JOIN systemuser s_colleague WITH (NOLOCK) ON ia.rs_colleague = s_colleague.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON os.rs_office = office.rs_officeid\nWHERE ia.statecode = 0 AND os.statecode = 0\n    AND o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND (COALESCE(office.rs_subregionname, s_colleague.territoryidname, o.rs_regionname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s_owner.domainname = 'christopher.au@willistowerswatson.com' OR s_colleague.domainname = 'christopher.au@willistowerswatson.com')\n\nUNION ALL\n\n-- Part 2: Service Lines WITHOUT Income Assignments\nSELECT os.rs_opportunityserviceid AS MainKey, os.rs_opportunityserviceid AS ServiceKey,\n    o.rs_opportunitynumber AS OpportunityID, o.parentaccountid AS AccountKey,\n    o.ownerid AS OpportunityOwnerKey, COALESCE(os.ownerid, o.ownerid) AS ColleagueInvolvedKey,\n    o.transactioncurrencyid AS CurrencyKey, o.campaignid AS CampaignKey,\n    os.rs_lob AS ProductClassKey, s_owner.rs_profitcenter AS ProfitCenterKey,\n    CAST(o.createdon AS DATE) AS CreatedDate, CAST(o.actualclosedate AS DATE) AS CloseDate,\n    CAST(o.rs_latestmodifieddate AS DATE) AS ModifiedDate, CAST(o.rs_inceptiondate AS DATE) AS FirstIncomeDate,\n    os.rs_linevalue AS EstRevenueLCY, os.rs_linevalue_base AS EstRevenueUSD,\n    CASE WHEN o.statecodename = 'WON' THEN os.rs_linevalue ELSE os.rs_linevalue * (CAST(REPLACE(o.rs_probabilityname, '%', '') AS FLOAT) / 100.0) END AS WtRevenueLCY,\n    CASE WHEN o.statecodename = 'WON' THEN os.rs_linevalue_base ELSE os.rs_linevalue_base * (CAST(REPLACE(o.rs_probabilityname, '%', '') AS FLOAT) / 100.0) END AS WtRevenueUSD,\n    'Opportunity Service (No IA)' AS DataSource\nFROM rs_opportunityservice os WITH (NOLOCK)\nINNER JOIN opportunity o WITH (NOLOCK) ON os.rs_opportunity = o.opportunityid\nLEFT JOIN systemuser s_owner WITH (NOLOCK) ON o.ownerid = s_owner.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON os.rs_office = office.rs_officeid\nWHERE os.statecode = 0 AND o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND (COALESCE(office.rs_subregionname, o.rs_regionname, s_owner.territoryidname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s_owner.domainname = 'christopher.au@willistowerswatson.com')\n    AND NOT EXISTS (SELECT 1 FROM rs_incomeassignment ia WITH (NOLOCK) WHERE ia.rs_serviceline = os.rs_opportunityserviceid AND ia.statecode = 0)\n\nUNION ALL\n\n-- Part 3: Opportunities WITHOUT Service Lines (Post-2024)\nSELECT o.opportunityid AS MainKey, NULL AS ServiceKey,\n    o.rs_opportunitynumber AS OpportunityID, o.parentaccountid AS AccountKey,\n    o.ownerid AS OpportunityOwnerKey, o.ownerid AS ColleagueInvolvedKey,\n    o.transactioncurrencyid AS CurrencyKey, o.campaignid AS CampaignKey,\n    o.rs_productclass AS ProductClassKey, s.rs_profitcenter AS ProfitCenterKey,\n    CAST(o.createdon AS DATE) AS CreatedDate, CAST(o.actualclosedate AS DATE) AS CloseDate,\n    CAST(o.rs_latestmodifieddate AS DATE) AS ModifiedDate, CAST(o.rs_inceptiondate AS DATE) AS FirstIncomeDate,\n    o.estimatedvalue AS EstRevenueLCY, o.estimatedvalue_base AS EstRevenueUSD,\n    o.rs_weightedincome AS WtRevenueLCY, o.rs_weightedincome_base AS WtRevenueUSD,\n    'Non Opportunity Service' AS DataSource\nFROM opportunity o WITH (NOLOCK)\nLEFT JOIN systemuser s WITH (NOLOCK) ON o.ownerid = s.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON o.rs_office = office.rs_officeid\nWHERE o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity') AND o.rs_inceptiondate >= '2024-01-01'\n    AND (COALESCE(o.rs_regionname, s.territoryidname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s.domainname = 'christopher.au@willistowerswatson.com')\n    AND NOT EXISTS (SELECT 1 FROM rs_opportunityservice os WITH (NOLOCK) WHERE os.rs_opportunity = o.opportunityid AND os.statecode = 0)\n\nUNION ALL\n\n-- Part 4A: Legacy CRB Opportunities (Pre-2024) - WITH Unpivoting\nSELECT o.opportunityid AS MainKey, NULL AS ServiceKey,\n    o.rs_opportunitynumber AS OpportunityID, o.parentaccountid AS AccountKey,\n    o.ownerid AS OpportunityOwnerKey, ia_unpivot.AssociateId AS ColleagueInvolvedKey,\n    o.transactioncurrencyid AS CurrencyKey, o.campaignid AS CampaignKey,\n    o.rs_productclass AS ProductClassKey, ia_unpivot.ProfitCenterId AS ProfitCenterKey,\n    CAST(o.createdon AS DATE) AS CreatedDate, CAST(o.actualclosedate AS DATE) AS CloseDate,\n    CAST(o.rs_latestmodifieddate AS DATE) AS ModifiedDate, CAST(o.rs_inceptiondate AS DATE) AS FirstIncomeDate,\n    o.estimatedvalue * (COALESCE(ia_unpivot.Percentage, 100) / 100.0) AS EstRevenueLCY,\n    o.estimatedvalue_base * (COALESCE(ia_unpivot.Percentage, 100) / 100.0) AS EstRevenueUSD,\n    o.rs_weightedincome * (COALESCE(ia_unpivot.Percentage, 100) / 100.0) AS WtRevenueLCY,\n    o.rs_weightedincome_base * (COALESCE(ia_unpivot.Percentage, 100) / 100.0) AS WtRevenueUSD,\n    'Legacy CRB' AS DataSource\nFROM opportunity o WITH (NOLOCK)\nCROSS APPLY (VALUES\n    (o.rs_incomeassignmentassociate1, o.rs_incomeassignmentpercentage1, o.rs_incomeassignmentprofitcenter1),\n    (o.rs_incomeassignmentassociate2, o.rs_incomeassignmentpercentage2, o.rs_incomeassignmentprofitcenter2),\n    (o.rs_incomeassignmentassociate3, o.rs_incomeassignmentpercentage3, o.rs_incomeassignmentprofitcenter3)\n) AS ia_unpivot(AssociateId, Percentage, ProfitCenterId)\nLEFT JOIN systemuser s_user WITH (NOLOCK) ON ia_unpivot.AssociateId = s_user.systemuserid\nLEFT JOIN systemuser s_owner WITH (NOLOCK) ON o.ownerid = s_owner.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON o.rs_office = office.rs_officeid\nWHERE o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND o.rs_inceptiondate < '2024-01-01' AND ia_unpivot.AssociateId IS NOT NULL\n    AND (COALESCE(o.rs_regionname, s_owner.territoryidname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s_owner.domainname = 'christopher.au@willistowerswatson.com')\n    AND (o.rs_incomeassignmentfinancelevel11name NOT LIKE 'H&B%' OR o.rs_incomeassignmentfinancelevel12name NOT LIKE 'H&B%' OR o.rs_incomeassignmentfinancelevel13name NOT LIKE 'H&B%')\n    AND NOT EXISTS (SELECT 1 FROM rs_opportunityservice os WITH (NOLOCK) WHERE os.rs_opportunity = o.opportunityid AND os.statecode = 0)\n\nUNION ALL\n\n-- Part 4B: Legacy Non-CRB Opportunities (Pre-2024) - WITHOUT Unpivoting\nSELECT o.opportunityid AS MainKey, NULL AS ServiceKey,\n    o.rs_opportunitynumber AS OpportunityID, o.parentaccountid AS AccountKey,\n    o.ownerid AS OpportunityOwnerKey, o.ownerid AS ColleagueInvolvedKey,\n    o.transactioncurrencyid AS CurrencyKey, o.campaignid AS CampaignKey,\n    o.rs_productclass AS ProductClassKey, s.rs_profitcenter AS ProfitCenterKey,\n    CAST(o.createdon AS DATE) AS CreatedDate, CAST(o.actualclosedate AS DATE) AS CloseDate,\n    CAST(o.rs_latestmodifieddate AS DATE) AS ModifiedDate, CAST(o.rs_inceptiondate AS DATE) AS FirstIncomeDate,\n    o.estimatedvalue AS EstRevenueLCY, o.estimatedvalue_base AS EstRevenueUSD,\n    o.rs_weightedincome AS WtRevenueLCY, o.rs_weightedincome_base AS WtRevenueUSD,\n    'Legacy Non-CRB' AS DataSource\nFROM opportunity o WITH (NOLOCK)\nLEFT JOIN systemuser s WITH (NOLOCK) ON o.ownerid = s.systemuserid\nLEFT JOIN rs_office office WITH (NOLOCK) ON o.rs_office = office.rs_officeid\nWHERE o.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n    AND o.rs_inceptiondate < '2024-01-01'\n    AND (COALESCE(o.rs_regionname, s.territoryidname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n        OR s.domainname = 'christopher.au@willistowerswatson.com')\n    AND NOT EXISTS (SELECT 1 FROM rs_opportunityservice os WITH (NOLOCK) WHERE os.rs_opportunity = o.opportunityid AND os.statecode = 0)\n    AND NOT EXISTS (\n        SELECT 1 FROM opportunity o2 WITH (NOLOCK)\n        CROSS APPLY (VALUES (o2.rs_incomeassignmentassociate1),(o2.rs_incomeassignmentassociate2),(o2.rs_incomeassignmentassociate3)) AS ia_check(AssociateId)\n        LEFT JOIN systemuser s_owner2 WITH (NOLOCK) ON o2.ownerid = s_owner2.systemuserid\n        WHERE o2.opportunityid = o.opportunityid AND o2.statuscodename NOT IN ('Duplicate Entry', 'Expiration no activity')\n            AND o2.rs_inceptiondate < '2024-01-01' AND ia_check.AssociateId IS NOT NULL\n            AND (COALESCE(o2.rs_regionname, s_owner2.territoryidname) IN ('Asia','Australasia','India','Vietnam','China','Australia','New Zealand')\n                OR s_owner2.domainname = 'christopher.au@willistowerswatson.com')\n            AND (o2.rs_incomeassignmentfinancelevel11name NOT LIKE 'H&B%' OR o2.rs_incomeassignmentfinancelevel12name NOT LIKE 'H&B%' OR o2.rs_incomeassignmentfinancelevel13name NOT LIKE 'H&B%')\n    )\n",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "MainKey",
+                "ColleagueInvolvedKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_sales"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy ProfitCenter",
+        "description": "Copy from ProfitCenter Table",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT [rs_profitcenterid] AS ProfitcenterKey, [createdon] AS Createdon, [modifiedon] AS Modifiedon, [statecodename] AS Statename, [rs_name] AS ProfitCenter, [rs_financelevel1name] AS Financelevel, [owningbusinessunitname] AS OwningBusinessName, [rs_businessname] AS BusinessName, [rs_lobname] AS LobName, [rs_segmentname] AS Segment FROM [dbo].[rs_profitcenter]",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "ProfitcenterKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_profitcenter"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy Tags",
+        "description": "Copy Tags List",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT \n    ROW_NUMBER() OVER (ORDER BY tag.rs_name) AS TagKey, tag.rs_tagslistid AS TagID, tag.rs_name AS TagName,\n    CASE \n        WHEN tag.rs_name LIKE '%CRB%' THEN 'CORPORATE RISK & BROKING'\n        WHEN tag.rs_name LIKE '%ICT%' THEN 'INSURANCE CONSULTING AND TECHNOLOGY'\n        WHEN tag.rs_name LIKE '%W&R%' THEN 'WORK & REWARDS'\n        WHEN tag.rs_name LIKE '%H&B%' THEN 'HEALTH & BENEFITS'\n        WHEN tag.rs_name LIKE '%INV%' THEN 'INVESTMENTS'\n        WHEN tag.rs_name LIKE '%RET%' THEN 'RETIREMENT'\n        ELSE NULL\n    END AS LOB,\n    tag.rs_tagcategorizationname AS TagType, 1 AS IsActive\nFROM rs_tagslist tag\nWHERE tag.statuscodename = 'ACTIVE'\n    AND (\n        tag.rs_name IN (\n            'Large Account - Asia - International - R&B - CRB', '#AsiaTMOs',\n            'Global Standards - APAC CRB - International - R&B - CRB',\n            'Global Standards - APAC ICT - International - R&B - ICT',\n            'Global Standards - APAC W&R - International - HWC - W&R',\n            'AUNZ CRB Large Accounts - International - R&B - CRB',\n            'International Industries AFB Tag')\n        OR EXISTS (SELECT 1 FROM systemuser s1 WHERE s1.systemuserid = tag.createdby\n            AND s1.domainname IN ('naziya.begum@willistowerswatson.com','vridhi.taneja@willistowerswatson.com'))\n        OR EXISTS (SELECT 1 FROM rs_lead_rs_tagslist ltag INNER JOIN lead l ON l.leadid = ltag.leadid\n            INNER JOIN systemuser s ON s.systemuserid = l.createdby WHERE ltag.rs_tagslistid = tag.rs_tagslistid\n            AND s.domainname IN ('naziya.begum@willistowerswatson.com','millie.nanagara@towerswatson.com'))\n    )\n    AND tag.rs_name NOT IN (\n        'INT-HWC-H&B: H&B Grow APAC 2025','19th World HR Congress - International - HWC - H&B',\n        '2024 ARG Accelerate - Desafío 1 - International - WTW - WTW','APAC HR roundtable - International - HWC - EX',\n        'Asia Qualified Marketing Leads - International - WTW - WTW','Beyond Data Q1 Webinar - International - HWC - W&R',\n        'Contact Us - Japan','D&O Seminar 2024 - International - R&B - CRB',\n        'DC Asia Survey 2023 - International - HWC - RET','GBL-HWC-H&B:2024 Wellbeing Diagnostic Survey participant',\n        'Global Health Benefit Seminar - International - HWC - H&B','H&B SG_Regional Benefits Form 2024',\n        'ICT ResQ FR ID Campaign 2024','ICT Thailand Seminar - 2024 - International - R&B - ICT',\n        'ICT_TechX SG 2024 - International - R&B - ICT','IGS Corporate Headquarters Contacts',\n        'IGS Regional Headquarters Contacts','INT-CHL-WTW-:Comité Comercial Ejecutivo Chile',\n        'INT-PHL-HWC-H&B:PH Benefits Forum 2024','INT-PHL-R&B-CRB:Strategic Risk_PH 2024',\n        'INT-SGP-R&B-CRB:CRB_Strategic Risk_SG 2024','INT-THA-R&B-CRB:apac-testing-tag',\n        'Japan Cyber - International - R&B - CRB','Japan D&O - International - R&B - CRB',\n        'Japan Energy & Construction - International - R&B - CRB','Japan P&C / Marine - International - R&B - CRB',\n        'Japan PVI / Political - International - R&B - CRB','Japan TC - International - R&B - CRB',\n        'Japanese Risk Trends Event','MKTLA-CL-HWC-2024-Desayunos Wellbeing - International - HWC - H&B',\n        'NA-HWC-H&B: Lead Generation 2024 WDS','Q3 BDW Leads',\n        'Storage Battery Risk Seminar 2024 - International - R&B - CRB',\n        'Wealth Campaign 2024 - International - HWC - INV','Wellbeing Diagnostic - 2024 - International - HWC - H&B')\nORDER BY tag.rs_name\n",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "TagID"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_tags"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      },
+      {
+        "name": "Copy Tags_Accounts",
+        "description": "Copy Account-Tag Bridge",
+        "type": "Copy",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": "SELECT \n    ROW_NUMBER() OVER (ORDER BY accountid, TagID) AS BridgeKey,\n    accountid AS AccountID, TagID, TagSource, 'Account' AS EntityType\nFROM (\n    SELECT DISTINCT a.accountid, tag.rs_tagslistid AS TagID, 'Direct' AS TagSource\n    FROM account a\n    INNER JOIN rs_account_rs_tagslist atl ON atl.accountid = a.accountid\n    INNER JOIN rs_tagslist tag ON tag.rs_tagslistid = atl.rs_tagslistid\n    WHERE tag.rs_name IN (\n        'Large Account - Asia - International - R&B - CRB', '#AsiaTMOs',\n        'Global Standards - APAC CRB - International - R&B - CRB',\n        'Global Standards - APAC ICT - International - R&B - ICT',\n        'Global Standards - APAC W&R - International - HWC - W&R',\n        'AUNZ CRB Large Accounts - International - R&B - CRB',\n        'International Industries AFB Tag')\n    UNION ALL\n    SELECT DISTINCT a.accountid, tag.rs_tagslistid AS TagID, 'Parent' AS TagSource\n    FROM account a\n    INNER JOIN account pa ON a.parentaccountid = pa.accountid\n    INNER JOIN rs_account_rs_tagslist atl ON atl.accountid = pa.accountid\n    INNER JOIN rs_tagslist tag ON tag.rs_tagslistid = atl.rs_tagslistid\n    WHERE pa.accountnumber IS NOT NULL AND tag.rs_name IN (\n        'Large Account - Asia - International - R&B - CRB', '#AsiaTMOs',\n        'Global Standards - APAC CRB - International - R&B - CRB',\n        'Global Standards - APAC ICT - International - R&B - ICT',\n        'Global Standards - APAC W&R - International - HWC - W&R',\n        'AUNZ CRB Large Accounts - International - R&B - CRB',\n        'International Industries AFB Tag')\n    UNION ALL\n    SELECT DISTINCT a.accountid, tag.rs_tagslistid AS TagID, 'Global Parent' AS TagSource\n    FROM account a\n    INNER JOIN account gpa ON a.rs_ultimateglobalparent = gpa.accountid\n    INNER JOIN rs_account_rs_tagslist atl ON atl.accountid = gpa.accountid\n    INNER JOIN rs_tagslist tag ON tag.rs_tagslistid = atl.rs_tagslistid\n    WHERE gpa.accountnumber IS NOT NULL AND tag.rs_name IN (\n        'Large Account - Asia - International - R&B - CRB', '#AsiaTMOs',\n        'Global Standards - APAC CRB - International - R&B - CRB',\n        'Global Standards - APAC ICT - International - R&B - ICT',\n        'Global Standards - APAC W&R - International - HWC - W&R',\n        'AUNZ CRB Large Accounts - International - R&B - CRB',\n        'International Industries AFB Tag')\n) AS AllAccountTags\n",
+            "queryTimeout": "02:00:00",
+            "partitionOption": "None",
+            "datasetSettings": {
+              "annotations": [],
+              "type": "SqlServerTable",
+              "schema": [],
+              "typeProperties": {
+                "database": "wtwcrb"
+              },
+              "externalReferences": {
+                "connection": "1cc13e34-2473-4d65-99ac-f6bc684cbf7a"
+              }
+            }
+          },
+          "sink": {
+            "type": "LakehouseTableSink",
+            "tableActionOption": "Upsert",
+            "upsertSettings": {
+              "keys": [
+                "BridgeKey"
+              ]
+            },
+            "applyVOrder": true,
+            "datasetSettings": {
+              "annotations": [],
+              "linkedService": {
+                "name": "APAC_CRM_Analytics_LH",
+                "properties": {
+                  "annotations": [],
+                  "type": "Lakehouse",
+                  "typeProperties": {
+                    "workspaceId": "76ec20c3-c400-415a-99c6-708f8207d5f9",
+                    "artifactId": "1c0d3357-c170-4ddd-9738-e1c90bbe99f2",
+                    "rootFolder": "Tables"
+                  }
+                }
+              },
+              "type": "LakehouseTable",
+              "schema": [],
+              "typeProperties": {
+                "table": "src_crm_bridge_account_tags"
+              }
+            }
+          },
+          "enableStaging": false,
+          "translator": {
+            "type": "TabularTranslator",
+            "typeConversion": true,
+            "typeConversionSettings": {
+              "allowDataTruncation": true,
+              "treatBooleanAsNumber": false
+            }
+          }
+        }
+      }
+    ],
+    "lastModifiedByObjectId": "bd19cf2a-c4b3-4f59-ba67-80409c35fdbc",
+    "lastPublishTime": "2025-12-01T06:32:13Z"
+  }
+}
