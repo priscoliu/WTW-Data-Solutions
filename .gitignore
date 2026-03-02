@@ -17,10 +17,15 @@
 Thumbs.db
 
 # IDE files
-.vscode/
 .idea/
 *.suo
 *.user
+
+# Claude Code local settings (machine-specific)
+.claude/
+
+# Python virtual environments
+.venv/
 
 # Temporary files
 *.tmp
