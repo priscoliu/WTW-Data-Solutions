@@ -60,11 +60,14 @@ let
     // === STEP 6: Filter out "Policy" rollup rows (avoid double-counting) ===
     #"Filtered rows" = Table.SelectRows(#"Null to zero", each [CoverageType] <> "Policy"),
 
-    // === FINAL: Reorder ===
+    // === STEP 7: Reorder ===
     #"Reordered" = Table.ReorderColumns(#"Filtered rows", {
         "PolicyNumber", "TransactionDate", "TransactionType",
         "CoverageType", "InvoiceNumber",
         "BasePremium", "TotalPremium", "Commission"
-    })
+    }),
+
+    // === STEP 8: Final rename CoverageType → ProductClass ===
+    #"Renamed columns" = Table.RenameColumns(#"Reordered", {{"CoverageType", "ProductClass"}})
 in
-    #"Reordered"
+    #"Renamed columns"
