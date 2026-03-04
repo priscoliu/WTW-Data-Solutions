@@ -1,13 +1,15 @@
 # WTW Data Solutions — Claude Project Context
 
 ## What This Project Is
+
 Central data engineering hub for WTW.
 Full guidelines: `AGENT_GUIDELINES.md`. Workflows: `.agent/workflows/`.
 
-> **Skills note**: `.agent/skills/` contains skill definitions for other agents (e.g. Agentspace/Antigravity).
-> Claude Code skills are installed globally at `C:\Users\LiuPr\.claude\skills\` — no duplication needed.
+> **Skills note**: Both Antigravity (`.agent/skills/`) and Claude Code (`~/.claude/skills/`) use `wtw-powerbi` as the Power BI skill.
+> Keep both copies in sync — same SKILL.md + references/ structure. Update both when making changes.
 
 ## Stack
+
 Python · PySpark · SQL · DAX · Power Query (M) · HTML5/CSS · Microsoft Fabric · Power BI
 
 ## File Registry (current state)
