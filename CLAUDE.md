@@ -1,7 +1,7 @@
 # WTW Data Solutions — Claude Project Context
 
 ## What This Project Is
-Central hub for data engineering and visualization at Willis Towers Watson.
+Central data engineering hub for WTW.
 Full guidelines: `AGENT_GUIDELINES.md`. Workflows: `.agent/workflows/`.
 
 > **Skills note**: `.agent/skills/` contains skill definitions for other agents (e.g. Agentspace/Antigravity).
