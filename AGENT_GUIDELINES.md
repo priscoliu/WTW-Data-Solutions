@@ -46,6 +46,7 @@ All naming follows strict patterns. No exceptions without team agreement.
 | Bronze | `Fabric-Bronze/CRM/` | *(D365 Data Pipeline — managed in Fabric)* |
 | Silver | `Fabric-Silver/Chloe/` | `02_silver_clean_eglobal.m`, `02_silver_notebook_eclipse.ipynb`, `02_silver_notebook_arias.ipynb`, `02_silver_notebook_gswin.ipynb`, `02_silver_notebook_saiba.ipynb` |
 | Silver | `Fabric-Silver/Baseline/` | *(upcoming — user's unified baseline project)* |
+| Gold | `Global-Loom/` | `00_explore_pas_silver.ipynb` *(Phase 0 — data profiling)* |
 
 **ETL Action Keywords**:
 

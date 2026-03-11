@@ -21,6 +21,7 @@ Python · PySpark · SQL · DAX · Power Query (M) · HTML5/CSS · Microsoft Fab
 | Silver | `Transformers/Alteryx-Migration/Fabric-Silver/Chloe/` | `02_silver_clean_eglobal.m`, `02_silver_notebook_eclipse.ipynb`, `02_silver_notebook_arias.ipynb`, `02_silver_notebook_gswin.ipynb`, `02_silver_notebook_saiba.ipynb`, `ref_Chloe_eglobal_product_mapping.m` |
 | Silver | `Transformers/Alteryx-Migration/Fabric-Silver/Baseline/` | *(not started — ignore)* |
 | Silver | `Transformers/Alteryx-Migration/Fabric-Silver/CRM/` | *(not started — ignore)* |
+| Gold | `Transformers/Global-Loom/` | `00_explore_pas_silver.ipynb` *(Phase 0 — PAS data profiling)* |
 | Source | `Transformers/Alteryx-Migration/Source-Analysis/` | Original Alteryx `.yxmd` |
 
 ## Naming Conventions (strict)
@@ -52,6 +53,7 @@ Python · PySpark · SQL · DAX · Power Query (M) · HTML5/CSS · Microsoft Fab
 | Trigger | Load |
 |---|---|
 | alteryx, migration, pyspark, notebook | `.agent/workflows/alteryx-migration.md` |
+| global loom, PAS, gold layer, star schema | `.agent/workflows/global-loom.md` |
 | DAX, measure, KPI, HTML card, Power BI | `.agent/skills/wtw-powerbi/SKILL.md` |
 | xlsx, excel, csv | `.agent/skills/xlsx/SKILL.md` |
 | pptx, slides, deck | `.agent/skills/pptx/SKILL.md` |
