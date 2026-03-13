@@ -1,0 +1,1 @@
+{"fields":[{"key":"0","name":"TotalInvoices","tag":{"type":"long"}},{"key":"1","name":"MatchedToTransaction","tag":{"type":"long"}},{"key":"2","name":"OrphanInvoices","tag":{"type":"long"}},{"key":"3","name":"MatchPct","tag":{"type":"decimal"}}],"rows":[{"TotalInvoices":"9744807","MatchedToTransaction":"9744675","OrphanInvoices":"132","MatchPct":"100.0"}]}

@@ -1,0 +1,1 @@
+{"fields":[{"key":"0","name":"TotalInvoices","tag":{"type":"long"}},{"key":"1","name":"MatchedToCFParty","tag":{"type":"long"}},{"key":"2","name":"UnmatchedInvoices","tag":{"type":"long"}}],"rows":[{"TotalInvoices":"11231506","MatchedToCFParty":"11095789","UnmatchedInvoices":"135717"}]}

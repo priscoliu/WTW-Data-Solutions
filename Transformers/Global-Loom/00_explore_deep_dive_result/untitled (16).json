@@ -1,0 +1,1 @@
+{"fields":[{"key":"0","name":"TotalTransactions","tag":{"type":"long"}},{"key":"1","name":"MatchedToProduct","tag":{"type":"long"}},{"key":"2","name":"OrphanProductIds","tag":{"type":"long"}}],"rows":[{"TotalTransactions":"85262175","MatchedToProduct":"85016624","OrphanProductIds":"0"}]}

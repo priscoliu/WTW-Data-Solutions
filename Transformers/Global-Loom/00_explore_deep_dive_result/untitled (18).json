@@ -1,0 +1,1 @@
+{"fields":[{"key":"0","name":"DocumentType","tag":{"type":"string"}},{"key":"1","name":"Cnt","tag":{"type":"long"}}],"rows":[{"DocumentType":"Invoice","Cnt":"9744807"}]}

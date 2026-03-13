@@ -1,0 +1,1 @@
+{"fields":[{"key":"0","name":"TotalInvoices","tag":{"type":"long"}},{"key":"1","name":"HasProduct","tag":{"type":"long"}},{"key":"2","name":"HasProductClass","tag":{"type":"long"}},{"key":"3","name":"ProductCoveragePct","tag":{"type":"decimal"}}],"rows":[{"TotalInvoices":"9744807","HasProduct":"9744675","HasProductClass":"6550972","ProductCoveragePct":"100.0"}]}

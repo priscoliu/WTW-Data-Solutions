@@ -1,0 +1,1 @@
+{"fields":[{"key":"0","name":"TotalTransactions","tag":{"type":"long"}},{"key":"1","name":"HasInvoice","tag":{"type":"long"}},{"key":"2","name":"NoInvoice","tag":{"type":"long"}},{"key":"3","name":"CoveragePct","tag":{"type":"decimal"}}],"rows":[{"TotalTransactions":"85262175","HasInvoice":"8126509","NoInvoice":"77135666","CoveragePct":"9.5"}]}
